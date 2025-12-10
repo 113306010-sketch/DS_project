@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-AiNewsApplication<aiNews>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.example.aiNews.AiNewsApplication",
+            "projectName": "aiNews",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
