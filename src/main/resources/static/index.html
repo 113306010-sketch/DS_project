@@ -77,6 +77,11 @@
   <div id="results">請輸入關鍵字開始搜尋。</div>
 
   <script>
+    document.getElementById("keyword").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        doSearch();
+      }
+    });
     async function doSearch() {
       const keywordInput = document.getElementById("keyword");
       const keyword = keywordInput.value.trim();
