@@ -27,7 +27,10 @@ public class SearchEngine {
 
         for (SearchItem item : items) {
             WebPage page = new WebPage(item.url, userKeyword);
-            int score = page.aiKeywordCount * 10 + page.userKeywordCount * 5;
+            
+            // 方案 2：使用者關鍵字優先（推薦）
+            int score = page.aiKeywordCount * 5 + page.userKeywordCount * 30;
+            
             if (isNewsSite(item.url)) {
                 score += 30;
             }
@@ -39,7 +42,8 @@ public class SearchEngine {
 
         List<SearchResult> results = new ArrayList<>();
         for (WebPageWithTitle p : pages) {
-            if ( p.page.userKeywordCount == 0) {
+            // 至少要有 3 次使用者關鍵字
+            if (p.page.userKeywordCount < 3) {
                 continue;
             }
             results.add(new SearchResult(
