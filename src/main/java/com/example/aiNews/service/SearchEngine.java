@@ -61,7 +61,6 @@ public class SearchEngine {
         }
         return false;
     }
-<<<<<<< HEAD
 
     private static class WebPageWithTitle {
         WebPage page;
@@ -72,6 +71,4 @@ public class SearchEngine {
             this.title = title;
         }
     }
-=======
->>>>>>> 0bc790658f3c08cc4ddfe600d0caeb67850b9cc8
 }
