@@ -17,7 +17,8 @@ public class SearchEngine {
             "techcrunch.com",
             "cnet.com",
             "engadget.com",
-            "digitaltrends.com"
+            "digitaltrends.com",
+            "bbc.com"
     );
 
     public List<SearchResult> rankPages(List<String> urls, String userKeyword) {
@@ -37,7 +38,7 @@ public class SearchEngine {
 
         List<SearchResult> results = new ArrayList<>();
         for (WebPage p : pages) {
-            if (p.aiKeywordCount == 0 && p.userKeywordCount == 0) {
+            if (p.userKeywordCount == 0) {
                 continue;
             }
             results.add(new SearchResult(p.url, p.aiKeywordCount, p.userKeywordCount, p.score));

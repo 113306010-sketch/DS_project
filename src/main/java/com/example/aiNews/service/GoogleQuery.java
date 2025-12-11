@@ -15,7 +15,7 @@ public class GoogleQuery {
 
     public List<String> search(String userKeyword) { 
         try { 
-            String expandedKeyword = userKeyword + " AI news"; 
+            String expandedKeyword = userKeyword + "news"; 
             String q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8); 
             String url = "https://www.googleapis.com/customsearch/v1" + "?key=" + apiKey + "&cx=" + cx + "&num=10" + "&q=" + q ; 
             ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class); 
