@@ -18,7 +18,8 @@ public class SearchEngine {
             "techcrunch.com",
             "cnet.com",
             "engadget.com",
-            "digitaltrends.com"
+            "digitaltrends.com",
+            "bbc.com"
     );
 
     public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
@@ -60,6 +61,7 @@ public class SearchEngine {
         }
         return false;
     }
+<<<<<<< HEAD
 
     private static class WebPageWithTitle {
         WebPage page;
@@ -70,4 +72,6 @@ public class SearchEngine {
             this.title = title;
         }
     }
+=======
+>>>>>>> 0bc790658f3c08cc4ddfe600d0caeb67850b9cc8
 }
