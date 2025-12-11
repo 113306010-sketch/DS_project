@@ -2,6 +2,7 @@ package com.example.aiNews.service;
 
 import com.example.aiNews.model.SearchResult;
 import com.example.aiNews.model.WebPage;
+import com.example.aiNews.service.GoogleQuery.SearchItem;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,27 +21,33 @@ public class SearchEngine {
             "digitaltrends.com"
     );
 
-    public List<SearchResult> rankPages(List<String> urls, String userKeyword) {
-        List<WebPage> pages = new ArrayList<>();
+    public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
+        List<WebPageWithTitle> pages = new ArrayList<>();
 
-        for (String url : urls) {
-            WebPage page = new WebPage(url, userKeyword);
+        for (SearchItem item : items) {
+            WebPage page = new WebPage(item.url, userKeyword);
             int score = page.aiKeywordCount * 10 + page.userKeywordCount * 5;
-            if (isNewsSite(url)) {
+            if (isNewsSite(item.url)) {
                 score += 30;
             }
             page.score = score;
-            pages.add(page);
+            pages.add(new WebPageWithTitle(page, item.title));
         }
 
-        pages.sort((a, b) -> Integer.compare(b.score, a.score));
+        pages.sort((a, b) -> Integer.compare(b.page.score, a.page.score));
 
         List<SearchResult> results = new ArrayList<>();
-        for (WebPage p : pages) {
-            if (p.aiKeywordCount == 0 && p.userKeywordCount == 0) {
+        for (WebPageWithTitle p : pages) {
+            if ( p.page.userKeywordCount == 0) {
                 continue;
             }
-            results.add(new SearchResult(p.url, p.aiKeywordCount, p.userKeywordCount, p.score));
+            results.add(new SearchResult(
+                p.page.url, 
+                p.title, 
+                p.page.aiKeywordCount, 
+                p.page.userKeywordCount, 
+                p.page.score
+            ));
         }
         return results;
     }
@@ -52,5 +59,15 @@ public class SearchEngine {
             }
         }
         return false;
+    }
+
+    private static class WebPageWithTitle {
+        WebPage page;
+        String title;
+        
+        WebPageWithTitle(WebPage page, String title) {
+            this.page = page;
+            this.title = title;
+        }
     }
 }

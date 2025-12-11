@@ -111,8 +111,9 @@
         data.forEach(item => {
           const div = document.createElement("div");
           div.className = "item";
-          div.innerHTML = `
-            <a href="${item.url}" target="_blank">${item.url}</a>
+           div.innerHTML = `
+            <a href="${item.url}" target="_blank" class="item-title">${item.title || item.url}</a>
+            <div style="font-size: 11px; color: #ccc; margin-top: 2px;">${item.url}</div>
             <div class="score">
               AI 關鍵字次數：${item.aiKeywordCount}，
               你的關鍵字次數：${item.userKeywordCount}，

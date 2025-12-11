@@ -2,6 +2,7 @@ package com.example.aiNews.controller;
 
 import com.example.aiNews.model.SearchResult;
 import com.example.aiNews.service.GoogleQuery;
+import com.example.aiNews.service.GoogleQuery.SearchItem;
 import com.example.aiNews.service.SearchEngine;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,7 +22,7 @@ public class SearchController {
 
     @GetMapping("/search")
     public List<SearchResult> search(@RequestParam String keyword) {
-        List<String> urls = googleQuery.search(keyword);
-        return searchEngine.rankPages(urls, keyword);
+        List<SearchItem> items = googleQuery.search(keyword);
+        return searchEngine.rankPages(items, keyword);
     }
 }
