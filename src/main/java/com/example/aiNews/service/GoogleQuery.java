@@ -37,7 +37,7 @@ public class GoogleQuery {
 
     public List<SearchItem> search(String userKeyword) {
         try {
-            String expandedKeyword = userKeyword + " AI";
+            String expandedKeyword = userKeyword + " AI technology news";
             String q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
             String url = "https://www.googleapis.com/customsearch/v1"
                     + "?key=" + apiKey
