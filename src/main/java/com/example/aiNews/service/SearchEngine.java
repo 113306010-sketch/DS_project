@@ -1,156 +1,112 @@
 package com.example.aiNews.service;
 
+import com.example.aiNews.model.Keyword;
 import com.example.aiNews.model.SearchResult;
 import com.example.aiNews.model.WebPage;
-import com.example.aiNews.model.WebNode;
 import com.example.aiNews.model.WebTree;
 import com.example.aiNews.service.GoogleQuery.SearchItem;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class SearchEngine {
 
-    private static final List<String> NEWS_DOMAINS = Arrays.asList(
-            "theverge.com",
-            "wired.com",
-            "reuters.com",
-            "bloomberg.com",
-            "techcrunch.com",
-            "cnet.com",
-            "engadget.com",
-            "digitaltrends.com",
-            "bbc.com"
+    // 定義 AI 相關關鍵字 (用於統計次數與加分)
+    private static final List<String> AI_KEYWORDS_LIST = Arrays.asList(
+            "ai", "artificial intelligence", "machine learning", "deep learning",
+            "neural network", "llm", "gpt", "generative ai"
     );
 
-    /**
-     * 對搜尋結果進行排序和過濾
-     * 使用樹狀結構組織搜尋結果的階層關係
-     * 
-     * 時間複雜度: O(n log n) - 主要來自排序
-     * 空間複雜度: O(n) - 儲存所有網頁節點
-     */
+    // 定義新聞網域 (用於額外加分)
+    private static final List<String> NEWS_DOMAINS = Arrays.asList(
+            "theverge.com", "wired.com", "reuters.com", "bloomberg.com",
+            "techcrunch.com", "cnet.com", "engadget.com", "digitaltrends.com", "bbc.com"
+    );
+
     public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
-        long startTime = System.currentTimeMillis();
-        
-        // 建立搜尋樹的根節點
-        WebPage rootPage = new WebPage("https://search.root", userKeyword);
-        rootPage.score = 0;
-        WebTree searchTree = new WebTree(rootPage);
-        
-        System.out.println("\n🌲 === 建立搜尋樹 ===");
-        System.out.println("根節點: 搜尋關鍵字 '" + userKeyword + "'");
-        
-        // 將每個搜尋結果作為子節點加入樹
-        List<WebPageWithTitle> pages = new ArrayList<>();
-
-        for (int i = 0; i < items.size(); i++) {
-            SearchItem item = items.get(i);
-            WebPage page = new WebPage(item.url, userKeyword);
-            
-            // 計算分數
-            int score = page.aiKeywordCount * 5 + page.userKeywordCount * 30;
-            if (isNewsSite(item.url)) {
-                score += 30;
-            }
-            page.score = score;
-            
-            // 將網頁加入樹狀結構
-            WebNode childNode = new WebNode(page);
-            searchTree.root.children.add(childNode);
-            
-            pages.add(new WebPageWithTitle(page, item.title));
-            
-            if (item.title.length() > 50) {
-                System.out.println("  ├─ 子節點 " + (i + 1) + ": " + item.title.substring(0, 50) + "...");
-            } else {
-                System.out.println("  ├─ 子節點 " + (i + 1) + ": " + item.title);
-            }
-        }
-
-        // 使用 DFS 計算樹的總分數
-        int totalScore = searchTree.computeScore();
-        
-        // 計算樹的統計資訊
-        int treeDepth = getTreeDepth(searchTree.root);
-        int leafCount = searchTree.root.children.size();
-        
-        System.out.println("\n📊 === 搜尋樹統計 ===");
-        System.out.println("樹的總分數: " + totalScore + " (使用 DFS 遞迴計算)");
-        System.out.println("樹的深度: " + treeDepth);
-        System.out.println("子節點數量: " + leafCount);
-        if (leafCount > 0) {
-            System.out.println("平均每個節點分數: " + (totalScore / leafCount));
-        }
-
-        // 排序
-        System.out.println("\n🔢 === 排序演算法 ===");
-        System.out.println("使用 TimSort 排序 " + pages.size() + " 個結果");
-        System.out.println("時間複雜度: O(n log n)");
-        
-        pages.sort((a, b) -> Integer.compare(b.page.score, a.page.score));
-
-        // 過濾和建立結果
+        List<WebPage> pages = new ArrayList<>();
         List<SearchResult> results = new ArrayList<>();
-        int filteredCount = 0;
+
+        // 1. 準備關鍵字列表與權重 (AI 關鍵字 + 使用者搜尋字)
+        // 這些將傳遞給 WebTree 用於計算節點分數
+        ArrayList<Keyword> keywords = new ArrayList<>();
         
-        for (WebPageWithTitle p : pages) {
-            if (p.page.userKeywordCount < 3) {
-                filteredCount++;
-                continue;
+        // AI 關鍵字權重設為 10
+        for (String k : AI_KEYWORDS_LIST) {
+            keywords.add(new Keyword(k, 10.0));
+        }
+        // 使用者關鍵字權重設為 30 (讓它比 AI 關鍵字更重要)
+        keywords.add(new Keyword(userKeyword, 30.0));
+
+        // 2. 處理每一個搜尋結果
+        for (SearchItem item : items) {
+            // [修正 1] 使用 item.url (根據你的 Log，這裡應該是 url 而不是 link)
+            String url = item.url; 
+            // 如果 item.title 為 null，則暫時用關鍵字代替
+            String title = (item.title != null) ? item.title : userKeyword;
+
+            // 建立根網頁與 WebTree
+            WebPage rootPage = new WebPage(url, title);
+            WebTree tree = new WebTree(rootPage);
+
+            try {
+                // [修正 2] 啟動爬蟲 (使用你提供的 WebTree 方法)
+                // 設定爬蟲深度為 2 (代表會往下抓一層子網頁)，避免執行時間過長
+                tree.startCrawlFromNode(tree.root, 2, 1);
+
+                // [修正 3] 計算整棵樹的分數 (Post-order DFS)
+                tree.setPostOrderScore(keywords);
+                
+            } catch (IOException e) {
+                System.out.println("Processing error for: " + url + " -> " + e.getMessage());
             }
-            results.add(new SearchResult(
-                p.page.url, 
-                p.title, 
-                p.page.aiKeywordCount, 
-                p.page.userKeywordCount, 
-                p.page.score
-            ));
+
+            // 額外加分邏輯：如果是權威新聞網站，直接幫根節點加分
+            if (isNewsSite(url)) {
+                tree.root.nodeScore += 500; 
+            }
+
+            // 將計算好的總分 (tree.root.nodeScore) 存回 rootPage，以便稍後排序
+            rootPage.score = tree.root.nodeScore;
+            pages.add(rootPage);
         }
-        
-        // 效能分析
-        long endTime = System.currentTimeMillis();
-        long duration = endTime - startTime;
-        
-        System.out.println("\n⏱️  === 效能分析 ===");
-        System.out.println("總執行時間: " + duration + " ms");
-        System.out.println("處理網頁數: " + items.size());
-        System.out.println("過濾掉的結果: " + filteredCount);
-        System.out.println("最終結果數: " + results.size());
-        if (items.size() > 0) {
-            System.out.println("平均每頁處理時間: " + (duration / items.size()) + " ms");
+
+        // 3. 排序：分數高的排前面
+        pages.sort((a, b) -> Double.compare(b.score, a.score));
+
+        // 4. 轉換為 SearchResult 物件 (供前端顯示)
+        for (WebPage p : pages) {
+            // [修正 4] 手動計算關鍵字次數
+            // 因為新版 WebPage 移除了計數欄位，我們必須呼叫 counter 來計算，才能填入 SearchResult
+            int aiCount = 0;
+            int userCount = 0;
+            
+            try {
+                // 累加所有 AI 關鍵字的出現次數
+                for (String k : AI_KEYWORDS_LIST) {
+                    aiCount += p.counter.countKeyword(k);
+                }
+                // 計算使用者關鍵字出現次數
+                userCount = p.counter.countKeyword(userKeyword);
+            } catch (IOException e) {
+                // 忽略讀取錯誤，維持 0
+            }
+
+            // 過濾掉分數太低或完全不相關的結果
+            if (p.score <= 0) {
+                continue; 
+            }
+
+            // 建立最終結果物件
+            // 注意：這裡的 score 是整棵樹的加權總分，而 counts 僅是主頁面的次數
+            results.add(new SearchResult(p.url, aiCount, userCount, (int) p.score));
         }
-        System.out.println("================\n");
-        
+
         return results;
     }
 
-    /**
-     * 計算樹的深度（高度）
-     * 使用遞迴演算法（DFS）
-     * 
-     * 時間複雜度: O(n) - 遍歷所有節點
-     * 空間複雜度: O(h) - h 為樹的高度（遞迴堆疊）
-     */
-    private int getTreeDepth(WebNode node) {
-        if (node == null || node.children.isEmpty()) {
-            return 1;
-        }
-        
-        int maxDepth = 0;
-        for (WebNode child : node.children) {
-            int childDepth = getTreeDepth(child);
-            maxDepth = Math.max(maxDepth, childDepth);
-        }
-        
-        return maxDepth + 1;
-    }
-
-    /**
-     * 檢查 URL 是否來自知名新聞網站
-     * 時間複雜度: O(k) - k 為新聞網站數量
-     */
     private boolean isNewsSite(String url) {
         for (String domain : NEWS_DOMAINS) {
             if (url.contains(domain)) {
@@ -158,18 +114,5 @@ public class SearchEngine {
             }
         }
         return false;
-    }
-
-    /**
-     * 內部類別：儲存網頁和標題的配對
-     */
-    private static class WebPageWithTitle {
-        WebPage page;
-        String title;
-        
-        WebPageWithTitle(WebPage page, String title) {
-            this.page = page;
-            this.title = title;
-        }
     }
 }
