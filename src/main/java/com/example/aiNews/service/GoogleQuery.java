@@ -8,6 +8,8 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class GoogleQuery {
@@ -23,10 +25,12 @@ public class GoogleQuery {
     public static class SearchItem {
         public String url;
         public String title;
+        public String snippet;
         
-        public SearchItem(String url, String title) {
+        public SearchItem(String url, String title, String snippet) {
             this.url = url;
             this.title = title;
+            this.snippet = snippet;
         }
         
         @Override
@@ -37,102 +41,80 @@ public class GoogleQuery {
 
     public List<SearchItem> search(String userKeyword) {
         try {
-            String expandedKeyword = userKeyword + " AI technology news";
-            String q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
-            String url = "https://www.googleapis.com/customsearch/v1"
-                    + "?key=" + apiKey
-                    + "&cx=" + cx
-                    + "&num=10"
-                    + "&q=" + q;
+            // 1. 基礎 URL
+            StringBuilder urlBuilder = new StringBuilder("https://www.googleapis.com/customsearch/v1");
+            urlBuilder.append("?key=").append(apiKey);
+            urlBuilder.append("&cx=").append(cx);
+            urlBuilder.append("&num=10");
+
+            String q;
+            
+            // 2. 語言偵測與動態參數設定
+            if (containsChinese(userKeyword)) {
+                System.out.println("✅ Detected Chinese input. Applying Localization (TW).");
+                
+                // 中文模式：關鍵字擴充 + 地區限制
+                String expandedKeyword = userKeyword + " AI 新聞";
+                q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
+                
+                // 加入 Google API 在地化參數
+                urlBuilder.append("&q=").append(q);
+
+                urlBuilder.append("&gl=tw");         // 限制地區：台灣
+                
+            } else {
+                System.out.println("✅ Detected English/Global input.");
+                
+                // 英文模式：關鍵字擴充
+                String expandedKeyword = userKeyword + " AI technology news";
+                q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
+                
+                urlBuilder.append("&q=").append(q);
+                // 英文模式通常不特別限制地區，保持全球搜尋
+            }
+
+            String url = urlBuilder.toString();
             
             System.out.println("\n=== Google Search Request ===");
-            System.out.println("Query: " + expandedKeyword);
-            System.out.println("URL: " + url.replace(apiKey, "***"));
+            System.out.println("Query URL (masked): " + url.replace(apiKey, "***"));
             
+            // 3. 發送請求
             ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
             Map<String, Object> body = resp.getBody();
             List<SearchItem> items = new ArrayList<>();
             
-            if (body != null) {
-                System.out.println("\n=== API Response ===");
-                System.out.println("Response keys: " + body.keySet());
+            if (body != null && body.containsKey("items")) {
+                List<Map<String, Object>> resultItems = (List<Map<String, Object>>) body.get("items");
                 
-                if (body.containsKey("items")) {
-                    List<Map<String, Object>> resultItems = (List<Map<String, Object>>) body.get("items");
-                    System.out.println("Total items from API: " + resultItems.size());
-                    
-                    if (!resultItems.isEmpty()) {
-                        System.out.println("\n=== First Item (Full Data) ===");
-                        Map<String, Object> firstItem = resultItems.get(0);
-                        for (Map.Entry<String, Object> entry : firstItem.entrySet()) {
-                            System.out.println(entry.getKey() + " = " + entry.getValue());
-                        }
+                for (Map<String, Object> item : resultItems) {
+                    String link = (String) item.get("link");
+                    String title = (String) item.get("title");
+                    String snippet = (String) item.get("snippet");
+
+                    // 4. 過濾非網頁檔案
+                    if (link.matches(".*\\.(pdf|xml|csv|xls|xlsx|doc|docx|ppt|pptx|zip|rar|gz|mht)$")) {
+                        System.out.println("Ignored non-HTML file: " + link);
+                        continue;
                     }
                     
-                    System.out.println("\n=== Processing All Items ===");
-                    for (int i = 0; i < resultItems.size(); i++) {
-                        Map<String, Object> item = resultItems.get(i);
-                        
-                        System.out.println("\n--- Item " + (i + 1) + " ---");
-                        
-                        String link = (String) item.get("link");
-                        String title = (String) item.get("title");
-                        String htmlTitle = (String) item.get("htmlTitle");
-                        String snippet = (String) item.get("snippet");
-                        
-                        System.out.println("link: " + link);
-                        System.out.println("title: " + title);
-                        System.out.println("htmlTitle: " + htmlTitle);
-                        System.out.println("snippet: " + (snippet != null ? snippet.substring(0, Math.min(50, snippet.length())) + "..." : null));
-                        
-                        String finalTitle = null;
-                        
-                        if (title != null && !title.trim().isEmpty()) {
-                            finalTitle = title;
-                            System.out.println("✓ Using 'title'");
-                        } else if (htmlTitle != null && !htmlTitle.trim().isEmpty()) {
-                            finalTitle = htmlTitle;
-                            System.out.println("✓ Using 'htmlTitle'");
-                        } else if (snippet != null && !snippet.trim().isEmpty()) {
-                            finalTitle = snippet.substring(0, Math.min(100, snippet.length()));
-                            System.out.println("✓ Using 'snippet' (truncated)");
-                        } else {
-                            finalTitle = link;
-                            System.out.println("✗ No title found, using URL");
-                        }
-                        
-                        if (finalTitle != null) {
-                            finalTitle = finalTitle.replaceAll("<[^>]*>", "").trim();
-                        }
-                        
-                        System.out.println("Final title: " + finalTitle);
-                        
-                        SearchItem searchItem = new SearchItem(link, finalTitle);
-                        items.add(searchItem);
-                        System.out.println("Added: " + searchItem);
-                    }
-                } else {
-                    System.out.println("\n✗ WARNING: No 'items' in response!");
-                    if (body.containsKey("error")) {
-                        System.out.println("API Error: " + body.get("error"));
-                    }
+                    items.add(new SearchItem(link, title, snippet));
                 }
-            } else {
-                System.out.println("\n✗ ERROR: Response body is null!");
             }
-            
-            System.out.println("\n=== Search Complete ===");
-            System.out.println("Returning " + items.size() + " items");
-            for (int i = 0; i < items.size(); i++) {
-                System.out.println((i+1) + ". " + items.get(i));
-            }
-            
             return items;
             
         } catch (Exception e) {
-            System.err.println("\n✗ GoogleQuery Exception: " + e.getMessage());
+            System.err.println("GoogleQuery Error: " + e.getMessage());
             e.printStackTrace();
             return new ArrayList<>();
         }
+    }
+
+    // ★ 語言偵測：檢查是否包含中文字元
+    private boolean containsChinese(String text) {
+        if (text == null) return false;
+        // Unicode 範圍 4E00-9FFF 是常用漢字
+        Pattern p = Pattern.compile("[\u4e00-\u9fa5]");
+        Matcher m = p.matcher(text);
+        return m.find();
     }
 }
