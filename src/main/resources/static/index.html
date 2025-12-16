@@ -2,86 +2,420 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI News 搜尋引擎</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: linear-gradient(135deg, #f5f0ff, #ffeef8);
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding-top: 80px;
+      padding: 60px 20px 40px;
       color: #3b285c;
     }
-    h1 {
-      margin-bottom: 10px;
+
+    .container {
+      width: 100%;
+      max-width: 900px;
     }
+
+    /* 標題區 */
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-align: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
     .subtitle {
       font-size: 14px;
       color: #7a6a99;
       margin-bottom: 30px;
+      text-align: center;
     }
+
+    /* 搜尋框 */
     .search-box {
       display: flex;
       gap: 10px;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
+      justify-content: center;
     }
+
     input {
-      padding: 10px 14px;
+      padding: 12px 18px;
       border-radius: 999px;
-      border: 1px solid #ccb9ff;
-      min-width: 260px;
+      border: 2px solid #ccb9ff;
+      min-width: 300px;
       outline: none;
+      font-size: 15px;
+      transition: all 0.3s;
     }
+
+    input:focus {
+      border-color: #a580ff;
+      box-shadow: 0 0 0 3px rgba(165, 128, 255, 0.1);
+    }
+
     button {
       border: none;
       border-radius: 999px;
-      padding: 10px 18px;
-      background-color: #a580ff;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       cursor: pointer;
+      font-weight: 500;
+      font-size: 15px;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
+
     button:hover {
-      background-color: #8d68ff;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
     }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    /* LLM 比較按鈕 */
+    .llm-compare-btn {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      margin-left: 10px;
+    }
+
+    .llm-compare-btn:hover {
+      box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+    }
+
+    /* 結果區 */
     #results {
-      width: min(800px, 90vw);
       background: #ffffffdd;
       border-radius: 18px;
-      padding: 20px 24px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
     }
+
+    .loading {
+      text-align: center;
+      color: #7a6a99;
+      padding: 40px;
+      font-size: 16px;
+    }
+
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(3, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+
     .item {
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
+      padding: 16px 0;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
     }
+
     .item:last-child {
       border-bottom: none;
     }
-    .score {
+
+    .item:hover {
+      background: #fafafa;
+      border-radius: 8px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .item-title {
+      color: #1a0dab;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 18px;
+      display: block;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .item-title:hover {
+      text-decoration: underline;
+    }
+
+    .item-url {
       font-size: 12px;
-      color: #999;
-      margin-top: 3px;
+      color: #5f6368;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+
+    .score {
+      font-size: 13px;
+      color: #70757a;
+      margin-top: 4px;
+    }
+
+    .score-badge {
+      display: inline-block;
+      background: #e8f0fe;
+      color: #1967d2;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-left: 8px;
+      font-weight: 500;
+    }
+
+    /* 相關關鍵字區 */
+    #related-keywords {
+      background: #ffffffdd;
+      border-radius: 18px;
+      padding: 20px 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      margin-bottom: 20px;
+      display: none;
+      backdrop-filter: blur(10px);
+    }
+
+    #related-keywords h3 {
+      color: #3b285c;
+      font-size: 18px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #keyword-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .keyword-chip {
+      background: linear-gradient(135deg, #e8e0ff 0%, #f0e8ff 100%);
+      color: #5a3d9a;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+      border: 2px solid transparent;
+    }
+
+    .keyword-chip:hover {
+      background: linear-gradient(135deg, #d4c5ff 0%, #e0d5ff 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(90, 61, 154, 0.2);
+      border-color: #a580ff;
+    }
+
+    .keyword-chip:active {
+      transform: translateY(0);
+    }
+
+    /* LLM 比較區 */
+    #llm-compare {
+      background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      display: none;
+      margin-top: 20px;
+    }
+
+    #llm-compare h3 {
+      color: #c53030;
+      font-size: 18px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .llm-prompt-box {
+      background: white;
+      border: 2px solid #feb2b2;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 12px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .copy-btn {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+    }
+
+    .llm-instructions {
+      background: #fff;
+      border-left: 4px solid #f5576c;
+      padding: 12px 16px;
+      margin-top: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #4a5568;
+    }
+
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .search-box {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      input {
+        min-width: 100%;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .llm-compare-btn {
+        margin-left: 0;
+        margin-top: 10px;
+      }
+
+      .item-title {
+        font-size: 16px;
+      }
+    }
+
+    /* 空狀態 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #7a6a99;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* 滾動條美化 */
+    .llm-prompt-box::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .llm-prompt-box::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .llm-prompt-box::-webkit-scrollbar-thumb {
+      background: #feb2b2;
+      border-radius: 10px;
+    }
+
+    .llm-prompt-box::-webkit-scrollbar-thumb:hover {
+      background: #fc8181;
     }
   </style>
 </head>
 <body>
-  <h1>🔍 AI News 搜尋引擎</h1>
-  <div class="subtitle">輸入任何關鍵字，我們幫你找「跟 AI 有關」的相關新聞</div>
+  <div class="container">
+    <!-- 標題區 -->
+    <h1>🔍 AI News 搜尋引擎</h1>
+    <div class="subtitle">輸入任何關鍵字，我們幫你找「跟 AI 有關」的相關新聞</div>
 
-  <div class="search-box">
-    <input id="keyword" placeholder="例如：保母、火鍋、狗狗、漫畫..." />
-    <button onclick="doSearch()">搜尋</button>
+    <!-- 搜尋框 -->
+    <div class="search-box">
+      <input 
+        id="keyword" 
+        type="text"
+        placeholder="例如：時尚、美食、運動、科技..." 
+        autocomplete="off"
+      />
+      <button onclick="doSearch()">🔍 搜尋</button>
+      <button class="llm-compare-btn" onclick="compareWithLLM()" id="llm-btn" style="display: none;">
+        🤖 與 AI 比較
+      </button>
+    </div>
+
+    <!-- 搜尋結果 -->
+    <div id="results">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔎</div>
+        <p>請輸入關鍵字開始搜尋</p>
+      </div>
+    </div>
+
+    <!-- 相關關鍵字 -->
+    <div id="related-keywords">
+      <h3>💡 相關搜尋建議</h3>
+      <div id="keyword-chips"></div>
+    </div>
+
+    <!-- LLM 比較區 -->
+    <div id="llm-compare">
+      <h3>🤖 與大型語言模型比較</h3>
+      <p style="color: #4a5568; margin-bottom: 12px;">
+        將下方 Prompt 複製到 ChatGPT、Claude 或 Gemini，比較我們的搜尋結果與 AI 的推薦
+      </p>
+      <div class="llm-prompt-box" id="llm-prompt"></div>
+      <button class="copy-btn" onclick="copyPrompt()">📋 複製 Prompt</button>
+      <div class="llm-instructions">
+        <strong>使用方式：</strong><br>
+        1. 點擊「複製 Prompt」按鈕<br>
+        2. 前往 ChatGPT / Claude / Gemini<br>
+        3. 貼上 Prompt 並送出<br>
+        4. 比較兩者的搜尋結果品質
+      </div>
+    </div>
   </div>
 
-  <div id="results">請輸入關鍵字開始搜尋。</div>
-
   <script>
+    let currentKeyword = '';
+    let currentResults = [];
+
+    // Enter 鍵搜尋
     document.getElementById("keyword").addEventListener("keypress", function(event) {
       if (event.key === "Enter") {
         doSearch();
       }
     });
+
+    // 主搜尋功能
     async function doSearch() {
       const keywordInput = document.getElementById("keyword");
       const keyword = keywordInput.value.trim();
@@ -92,39 +426,155 @@
         return;
       }
 
-      resultsDiv.innerHTML = "搜尋中，請稍候...";
+      currentKeyword = keyword;
+
+      // 顯示載入狀態
+      resultsDiv.innerHTML = '<div class="loading">搜尋中，請稍候</div>';
+      document.getElementById("related-keywords").style.display = "none";
+      document.getElementById("llm-compare").style.display = "none";
+      document.getElementById("llm-btn").style.display = "none";
 
       try {
+        // 呼叫搜尋 API
         const res = await fetch(`/search?keyword=${encodeURIComponent(keyword)}`);
+        
         if (!res.ok) {
-          resultsDiv.innerHTML = "伺服器發生錯誤。";
+          resultsDiv.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">⚠️</div>
+              <p>伺服器發生錯誤，請稍後再試</p>
+            </div>
+          `;
           return;
         }
+
         const data = await res.json();
+        currentResults = data;
 
         if (!data || data.length === 0) {
-          resultsDiv.innerHTML = "沒有找到與 AI 相關的新聞（可能關鍵字太冷門了 QQ）。";
+          resultsDiv.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">🤷</div>
+              <p>沒有找到與 AI 相關的新聞</p>
+              <p style="font-size: 14px; margin-top: 8px; color: #999;">
+                試試其他關鍵字，例如：時尚、美食、教育
+              </p>
+            </div>
+          `;
           return;
         }
 
+        // 顯示搜尋結果
         resultsDiv.innerHTML = "";
-        data.forEach(item => {
+        data.forEach((item, index) => {
           const div = document.createElement("div");
           div.className = "item";
-           div.innerHTML = `
-            <a href="${item.url}" target="_blank" class="item-title">${item.title || item.url}</a>
-            <div style="font-size: 11px; color: #ccc; margin-top: 2px;">${item.url}</div>
+          div.innerHTML = `
+            <a href="${item.url}" target="_blank" class="item-title">
+              ${index + 1}. ${item.title || item.url}
+            </a>
+            <div class="item-url">${item.url}</div>
             <div class="score">
-              AI 關鍵字次數：${item.aiKeywordCount}，
-              你的關鍵字次數：${item.userKeywordCount}，
-              綜合分數：${item.score}
+              🤖 AI 關鍵字: ${item.aiKeywordCount} 次 · 
+              🎯 你的關鍵字: ${item.userKeywordCount} 次
+              <span class="score-badge">分數: ${item.score}</span>
             </div>
           `;
           resultsDiv.appendChild(div);
         });
+
+        // 顯示 LLM 比較按鈕
+        document.getElementById("llm-btn").style.display = "inline-block";
+
+        // 取得相關關鍵字
+        fetchRelatedKeywords(keyword);
+
       } catch (e) {
-        resultsDiv.innerHTML = "發生錯誤：" + e;
+        resultsDiv.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">❌</div>
+            <p>發生錯誤：${e.message}</p>
+          </div>
+        `;
+        console.error("搜尋錯誤:", e);
       }
+    }
+
+    // Stage 4: 取得相關關鍵字
+    async function fetchRelatedKeywords(keyword) {
+      try {
+        const res = await fetch(`/related-keywords?keyword=${encodeURIComponent(keyword)}`);
+        const data = await res.json();
+        
+        const chipsDiv = document.getElementById('keyword-chips');
+        chipsDiv.innerHTML = '';
+        
+        if (data.related_keywords && data.related_keywords.length > 0) {
+          data.related_keywords.forEach(kw => {
+            const chip = document.createElement('span');
+            chip.className = 'keyword-chip';
+            chip.textContent = kw;
+            chip.onclick = () => {
+              document.getElementById('keyword').value = kw;
+              doSearch();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            chipsDiv.appendChild(chip);
+          });
+          
+          document.getElementById('related-keywords').style.display = 'block';
+        }
+      } catch (e) {
+        console.error('無法取得相關關鍵字:', e);
+      }
+    }
+
+    // Stage 6: 與 LLM 比較
+    async function compareWithLLM() {
+      const llmDiv = document.getElementById('llm-compare');
+      const promptDiv = document.getElementById('llm-prompt');
+
+      llmDiv.style.display = 'block';
+      promptDiv.innerHTML = '生成中...';
+
+      try {
+        const res = await fetch(`/compare-llm?keyword=${encodeURIComponent(currentKeyword)}`);
+        const data = await res.json();
+
+        promptDiv.textContent = data.prompt_for_chatgpt;
+
+        // 滾動到 LLM 區域
+        llmDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      } catch (e) {
+        promptDiv.innerHTML = `
+          <span style="color: #e53e3e;">
+            ❌ 無法生成 Prompt：${e.message}
+          </span>
+        `;
+        console.error('LLM 比較錯誤:', e);
+      }
+    }
+
+    // 複製 Prompt
+    function copyPrompt() {
+      const promptText = document.getElementById('llm-prompt').textContent;
+      
+      navigator.clipboard.writeText(promptText).then(() => {
+        // 視覺回饋
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅ 已複製！';
+        btn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+        
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+        }, 2000);
+      }).catch(err => {
+        alert('複製失敗，請手動選取文字複製');
+        console.error('複製錯誤:', err);
+      });
     }
   </script>
 </body>
