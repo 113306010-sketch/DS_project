@@ -9,7 +9,9 @@ public class HTMLFetcher {
         try {
             Document doc = Jsoup.connect(url)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                    .timeout(8000)
+                    .timeout(4000)
+                    .maxBodySize(300_000) // ⭐ 關鍵：限制大小
+                    .followRedirects(true)
                     .get();
             return doc.text();
         } catch (Exception e) {
@@ -18,3 +20,4 @@ public class HTMLFetcher {
         }
     }
 }
+

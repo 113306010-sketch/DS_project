@@ -4,12 +4,18 @@ import com.example.aiNews.model.SearchResult;
 import com.example.aiNews.model.WebPage;
 import com.example.aiNews.model.WebTree;
 import com.example.aiNews.service.GoogleQuery.SearchItem;
+import org.springframework.stereotype.Service;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@Service
 public class SearchEngine {
 
     // 1. 權威網站 (加分)
@@ -26,61 +32,93 @@ public class SearchEngine {
             "pinterest.com", "reddit.com"
     );
 
-    public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
-        List<SearchResult> results = new ArrayList<>();
+    // 在 SearchEngine.java 中，替換原有的 rankPages 方法
+public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
+    // 【✨ 新增：使用執行緒池來管理並行任務，這裡設定 15 個執行緒來同時處理 15 個網頁 ✨】
+    ExecutorService executor = Executors.newFixedThreadPool(15); 
+    
+    // 使用 CompletableFuture 來儲存非同步任務的未來結果
+    List<CompletableFuture<SearchResult>> futures = new ArrayList<>();
 
-        for (SearchItem item : items) {
-            String url = item.url;
-            String title = (item.title != null) ? item.title : item.url;
+    for (SearchItem item : items) {
+        String url = item.url;
+        String title = (item.title != null && !item.title.isEmpty()) ? item.title : url;
 
-            // ★ 檢查黑名單，若是 LinkedIn 直接跳過
-            if (isBlockedSite(url)) {
-                System.out.println("Blocked site ignored: " + url);
-                continue;
-            }
-
-            // 建立樹與爬蟲
-            WebPage rootPage = new WebPage(url, userKeyword);
-            WebTree tree = new WebTree(rootPage, userKeyword);
-
-            try {
-                // 深度設為 1 (只爬當前頁)，若要爬子頁面設為 2 (會比較慢)
-                tree.buildTree(1); 
-            } catch (Exception e) {
-                System.out.println("Tree error: " + e.getMessage());
-            }
-
-            // 計算總分
-            double treeScore = tree.computeTotalScore();
-
-            if (isNewsSite(url)) {
-                treeScore += 200; 
-                tree.root.nodeScore += 200; // 同步更新節點分數以利列印
-            }
-            rootPage.score = treeScore;
-
-            // ★ 關鍵步驟：在終端機列印樹狀結構與關鍵字次數
-            System.out.println("\n=== Tree Structure for: " + title + " ===");
-            tree.eularPrintTree();
-            System.out.println("========================================\n");
-
-            // 過濾低分結果
-            if (rootPage.userKeywordCount == 0 && treeScore < 50) {
-                continue;
-            }
-
-            results.add(new SearchResult(
-                url, 
-                title, 
-                rootPage.aiKeywordCount, 
-                rootPage.userKeywordCount, 
-                (int) treeScore
-            ));
+        // 檢查黑名單，如果是黑名單網站則跳過
+        if (isBlockedSite(url)) {
+            continue;
         }
 
-        results.sort((a, b) -> Integer.compare(b.score, a.score));
-        return results;
+        // 【✨ 關鍵：將 WebTree 建立和計分邏輯包裝成一個非同步任務 ✨】
+        CompletableFuture<SearchResult> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                // 1. 建立 WebPage (抓取內容)
+                WebPage rootPage = new WebPage(url, userKeyword);
+                
+                // 2. 建立 WebTree (抓取子連結)
+                WebTree tree = new WebTree(rootPage, userKeyword);
+                tree.buildTree(2); // 限制深度 2
+
+                // 3. 計算分數
+                double treeScore = tree.computeTotalScore();
+                
+                // 4. 權威網站加分邏輯
+                if (isNewsSite(url)) {
+                    treeScore += 200; 
+                    tree.root.nodeScore += 200; // 同步更新節點分數
+                }
+                rootPage.score = treeScore;
+                
+                // 5. 輸出樹狀結構 (保留用於報告)
+                System.out.println("\n=== Tree Structure for: " + title + " ===");
+                tree.eularPrintTree();
+                System.out.println("========================================\n");
+
+                // 6. 過濾低分結果
+                if (tree.root.webPage.aiKeywordCount == 0) {
+    // 檢查 WebPage.aiKeywordCount (Strong + Weak AI 關鍵字總和) 是否為 0
+    System.out.println("Low AI relevance ignored (AI count is 0): " + url);
+    return null; // 完全沒有 AI 關鍵字，直接丟棄
+}
+
+if (treeScore < 80) { // 設定一個比 50 更高的門檻，例如 80 分
+    // 雖然有 AI 關鍵字，但分數仍偏低，可能只是順帶提到。
+    System.out.println("Low overall score ignored (Score < 80): " + url);
+    return null; 
+}
+
+                // 7. 建立最終結果物件
+                return new SearchResult(
+                    url, 
+                    title, 
+                    rootPage.aiKeywordCount, 
+                    rootPage.userKeywordCount, 
+                    (int) treeScore
+                );
+            } catch (Exception e) {
+                // 處理單一網頁處理失敗，不會中斷整個搜尋
+                System.err.println("Error processing URL: " + url + " -> " + e.getMessage());
+                return null;
+            }
+        }, executor); // 指定在哪個執行緒池運行
+        
+        futures.add(future);
     }
+    
+    // 【✨ 關鍵：等待所有任務完成，並收集結果 ✨】
+    List<SearchResult> results = futures.stream()
+            // 處理結果，如果任務失敗或返回 null 則忽略
+            .map(f -> f.join()) 
+            .filter(r -> r != null) 
+            .collect(Collectors.toList());
+            
+    // 關閉執行緒池
+    executor.shutdown(); 
+    
+    // 排序和返回結果
+    results.sort((a, b) -> Integer.compare(b.score, a.score));
+    return results;
+}
 
     private boolean isNewsSite(String url) {
         if (url == null) return false;

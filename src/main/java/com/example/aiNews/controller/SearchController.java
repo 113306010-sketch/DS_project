@@ -14,10 +14,11 @@ import java.util.List;
 public class SearchController {
 
     private final GoogleQuery googleQuery;
-    private final SearchEngine searchEngine = new SearchEngine();
+    private final SearchEngine searchEngine;
 
-    public SearchController(GoogleQuery googleQuery) {
+    public SearchController(GoogleQuery googleQuery, SearchEngine searchEngine) {
         this.googleQuery = googleQuery;
+        this.searchEngine = searchEngine;
     }
 
     @GetMapping("/search")
