@@ -7,93 +7,102 @@ import java.util.List;
 public class WebPage {
 
     public String url;
+    public String title; // ★ 新增
     public String content;
     public int aiKeywordCount;
     public int userKeywordCount;
     public double score;
 
-    // 1. 強力 AI 關鍵字 (加入中文) - 權重 5.0
+    // 1. 強力 AI 關鍵字 (加入生活化與熱門詞彙)
     private static final List<String> STRONG_AI_KEYWORDS = Arrays.asList(
             // English
-            "machine learning", "deep learning", "neural network", 
-            "large language model", "generative ai", "computer vision", 
-            "natural language processing", "algorithm", "reinforcement learning",
-            "artificial intelligence", "big model",
+            "artificial intelligence", "generative ai", "chatgpt", "openai", 
+            "large language model", "machine learning", "deep learning", "nvidia",
             // Chinese
-            "機器學習", "深度學習", "神經網絡", "神經網路", 
-            "大型語言模型", "生成式", "電腦幻覺", "自然語言處理", "演算法", "強化學習",
-            "人工智慧", "大模型"
+            "人工智慧", "生成式", "語言模型", "機器學習", "深度學習",
+            "聊天機器人", "AI技術", "AI工具", "AI應用", "AI繪圖", "AI晶片",
+            "輝達", "黃仁勳", "OpenAI", "ChatGPT", "Gemini", "Copilot", "大模型"
     );
 
-    // 2. 弱 AI 關鍵字 (加入中文) - 權重 1.0 (有上限)
+    // 2. 弱 AI 關鍵字
     private static final List<String> WEAK_AI_KEYWORDS = Arrays.asList(
-            "ai", "gpt", "bot", "chatgpt", "openai", "gemini", "copilot",
-            "模型", "智能", "智慧", "機器人"
+            "ai", "gpt", "bot", "model", 
+            "智慧", "智能", "機器人", "自動化", "演算法", "模型", "數位", "科技"
     );
 
-    // 3. 內容/品質關鍵字 (加入中文) - 權重 12.0
+    // 3. 內容/品質關鍵字 (加入媒體用語)
     private static final List<String> CONTENT_KEYWORDS = Arrays.asList(
             // English
-            "news", "report", "study", "research", "analysis", 
-            "introduction", "guide", "review", "impact", "application",
-            "reveals", "discovered", "hidden", "unusual detail", "masterpiece", "overview",
+            "news", "report", "trend", "guide", "review", "impact", "launch",
+            "reveals", "future", "application", "top", "best",
             // Chinese
-            "新聞", "報導", "研究", "分析", "介紹", "指南", "評論", "影響", 
-            "應用", "名作", "趨勢", "技術", "觀點", "專題", "懶人包", "資深記者"
+            "新聞", "報導", "趨勢", "懶人包", "教學", "必看", "首發", 
+            "最新", "應用", "影響", "生活", "職場", "教育", "產業", 
+            "話題", "熱議", "分析", "觀點", "專題", "資深記者", "採訪"
     );
 
+    // 為了相容性保留舊建構子 (可以不刪，避免報錯)
     public WebPage(String url, String userKeyword) {
-        this(url, userKeyword, "");
+        this(url, "", "", userKeyword);
     }
 
-    public WebPage(String url, String userKeyword, String snippet) {
+    // ★ 新建構子：接收 title 和 snippet
+    public WebPage(String url, String title, String snippet, String userKeyword) {
         this.url = url;
+        this.title = title;
         this.content = HTMLFetcher.fetch(url);
         
-        // Snippet Fallback
-        if (this.content == null || this.content.trim().isEmpty()) {
-            this.content = snippet;
+        if (this.content == null) {
+            this.content = ""; // 避免 null
         }
         
-        String text = (content == null) ? "" : content.toLowerCase();
+        // ★ 關鍵：計分內容 = 標題 + 摘要 + 內文
+        String allText = (title + " " + snippet + " " + content).toLowerCase();
         String safeUserKeyword = (userKeyword == null) ? "" : userKeyword.toLowerCase();
 
-        // --- 分數計算 ---
-        double strongAiScore = countKeywords(text, STRONG_AI_KEYWORDS) * 5.0; 
+        // 1. 計算分數
+        double strongAiScore = countKeywords(allText, STRONG_AI_KEYWORDS) * 5.0; 
+        double rawWeakAiScore = countKeywords(allText, WEAK_AI_KEYWORDS) * 1.0;
+        double weakAiScore = Math.min(rawWeakAiScore, 30.0); 
+        double contentScore  = countKeywords(allText, CONTENT_KEYWORDS) * 12.0; 
         
-        double rawWeakAiScore = countKeywords(text, WEAK_AI_KEYWORDS) * 1.0;
-        double weakAiScore = Math.min(rawWeakAiScore, 30.0); // 上限 30 分
-
-        double contentScore  = countKeywords(text, CONTENT_KEYWORDS) * 12.0; 
+        // ★ 支援多關鍵字計分 (例如 "狗狗 dog")
+        double userKeyScore = 0;
+        int totalUserCount = 0;
+        String[] keywords = safeUserKeyword.split("\\s+"); // 用空白切割
         
-        double userKeyScore  = countKeyword(text, safeUserKeyword) * 30.0;
+        for (String kw : keywords) {
+            if (kw.length() > 0) {
+                int count = countKeyword(allText, kw);
+                userKeyScore += count * 30.0;
+                totalUserCount += count;
+            }
+        }
 
         this.score = strongAiScore + weakAiScore + contentScore + userKeyScore;
         
-        // 統計數據 (合併 Strong 和 Weak 供顯示)
         this.aiKeywordCount = (int)(strongAiScore / 5.0 + rawWeakAiScore); 
-        this.userKeywordCount = (int)(userKeyScore / 30.0);
+        this.userKeywordCount = totalUserCount;
     }
 
     public String getKeywordStats(String userKeyword) {
         StringBuilder sb = new StringBuilder();
-        String text = (content == null) ? "" : content.toLowerCase();
+        // 統計也包含標題，避免數據不一致
+        String text = (title + " " + content).toLowerCase(); 
         
         if (userKeyword != null && !userKeyword.isEmpty()) {
-            int count = countKeyword(text, userKeyword.toLowerCase());
-            if (count > 0) sb.append(userKeyword).append(":").append(count).append(" ");
+            String[] keywords = userKeyword.toLowerCase().split("\\s+");
+            for (String kw : keywords) {
+                int count = countKeyword(text, kw);
+                if (count > 0) sb.append(kw).append(":").append(count).append(" ");
+            }
         }
 
-        // 只印出有找到的 Strong Keywords
+        // 簡化顯示，只列出 Strong Keywords
         for (String k : STRONG_AI_KEYWORDS) {
             int count = countKeyword(text, k);
             if (count > 0) sb.append(k).append(":").append(count).append(" ");
         }
-        
-        // 為了版面整潔，Weak AI 只顯示總數概念，不一一列出
-        int aiCount = countKeyword(text, "ai") + countKeyword(text, "人工智慧");
-        if (aiCount > 0) sb.append("ai/人工智慧:").append(aiCount).append(" ");
-
         return sb.toString().trim();
     }
 

@@ -4,17 +4,17 @@ import com.example.aiNews.model.SearchResult;
 import com.example.aiNews.model.WebPage;
 import com.example.aiNews.model.WebTree;
 import com.example.aiNews.service.GoogleQuery.SearchItem;
-import org.springframework.stereotype.Service; // ★ 記得匯入這個
+import com.example.aiNews.util.Translator; // ★ 匯入翻譯工具
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@Service // ★★★ 關鍵修正：加上這一行，Spring 才能找到它 ★★★
+@Service
 public class SearchEngine {
 
-    // 權威新聞網站 (加分用)
     private static final List<String> NEWS_DOMAINS = Arrays.asList(
             "theverge.com", "wired.com", "reuters.com", "bloomberg.com",
             "techcrunch.com", "cnet.com", "engadget.com", "digitaltrends.com", 
@@ -22,7 +22,6 @@ public class SearchEngine {
             "ithome.com.tw", "bnext.com.tw", "technews.tw", "udn.com", "cw.com.tw" 
     );
 
-    // 垃圾網站黑名單 (直接封鎖)
     private static final List<String> BLOCKED_DOMAINS = Arrays.asList(
             "linkedin.com", "facebook.com", "instagram.com", "twitter.com", 
             "pinterest.com", "reddit.com", "threads.net", "threads.com", 
@@ -36,18 +35,26 @@ public class SearchEngine {
     public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
         List<SearchResult> results = new ArrayList<>();
 
+        // ★ 準備計分用的關鍵字字串 (中文 + 英文)
+        String scoringKeyword = userKeyword;
+        if (containsChinese(userKeyword)) {
+            String translated = Translator.translate("zh-TW", "en", userKeyword);
+            // 組合： "狗狗 dog"
+            scoringKeyword = userKeyword + " " + translated;
+        }
+
         for (SearchItem item : items) {
             String url = item.url;
             String title = (item.title != null) ? item.title : item.url;
 
-            // 1. 檢查黑名單
             if (isBlockedSite(url)) {
                 System.out.println("🚫 Blocked junk site: " + url);
                 continue;
             }
 
-            WebPage rootPage = new WebPage(url, userKeyword, item.snippet);
-            WebTree tree = new WebTree(rootPage, userKeyword);
+            // ★ 關鍵修改：使用 scoringKeyword (雙語) 並傳入 title, snippet
+            WebPage rootPage = new WebPage(url, title, item.snippet, scoringKeyword);
+            WebTree tree = new WebTree(rootPage, scoringKeyword);
 
             try {
                 if (rootPage.content != null && rootPage.content.equals(item.snippet)) {
@@ -67,23 +74,15 @@ public class SearchEngine {
             }
             rootPage.score = treeScore;
 
-            // 印出樹狀結構 (除錯用)
             System.out.println("\n=== Tree Structure for: " + title + " ===");
             tree.eularPrintTree();
             System.out.println("========================================\n");
 
-            
-
-            boolean keywordInContent = rootPage.userKeywordCount > 0;
-            boolean keywordInTitle = title.toLowerCase().contains(userKeyword.toLowerCase());
-
-            if (!keywordInContent && !keywordInTitle) {
-                continue;
-            }
-
-            if (!keywordInTitle && treeScore < 5) {
-                 continue;
-            }
+            // 過濾低分 (門檻 10 分，避免錯殺標題相關但內文抓不到的)
+           if (rootPage.userKeywordCount == 0 && treeScore < 10) {
+        // 只有在「沒提到使用者關鍵字」且「分數很低」時才過濾
+    continue; 
+}
 
             results.add(new SearchResult(
                 url, 
@@ -113,5 +112,11 @@ public class SearchEngine {
             if (lowerUrl.contains(domain)) return true;
         }
         return false;
+    }
+    
+    // 補上判斷中文的方法
+    private boolean containsChinese(String text) {
+        if (text == null) return false;
+        return java.util.regex.Pattern.compile("[\u4e00-\u9fa5]").matcher(text).find();
     }
 }

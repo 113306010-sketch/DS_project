@@ -1,5 +1,6 @@
 package com.example.aiNews.service;
 
+import com.example.aiNews.util.Translator; // ★ 匯入翻譯工具
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -41,48 +42,45 @@ public class GoogleQuery {
 
     public List<SearchItem> search(String userKeyword) {
         try {
-            // 1. 基礎 URL
             StringBuilder urlBuilder = new StringBuilder("https://www.googleapis.com/customsearch/v1");
             urlBuilder.append("?key=").append(apiKey);
             urlBuilder.append("&cx=").append(cx);
             urlBuilder.append("&num=10");
 
+            // 保留原本的排除清單 (很好用，繼續留著)
+            String excludeTerms = " -site:play.google.com"
+                                + " -site:apps.apple.com"
+                                + " -site:shopee.tw"
+                                + " -site:momo.com.tw"
+                                + " -site:pchome.com.tw"
+                                + " -site:104.com.tw"
+                                + " -site:1111.com.tw"
+                                + " -site:wikipedia.org"
+                                + " -site:moedict.tw";
+
             String q;
             
-            // 2. 語言偵測與動態參數設定
             if (containsChinese(userKeyword)) {
-                System.out.println("✅ Detected Chinese input. Applying Localization (TW).");
+                // ★ 1. 翻譯：例如 "生成式" -> "Generative"
+                String translatedKeyword = Translator.translate("zh-TW", "en", userKeyword);
+                System.out.println("🔠 Hybrid Search: [" + userKeyword + "] + [" + translatedKeyword + "]");
                 
-                String excludeTerms = " -site:play.google.com"
-                                    + " -site:apps.apple.com"
-                                    + " -site:shopee.tw"
-                                    + " -site:momo.com.tw"
-                                    + " -site:pchome.com.tw"
-                                    + " -site:104.com.tw"
-                                    + " -site:1111.com.tw"
-                                    + " -site:wikipedia.org"
-                                    + " -site:moedict.tw";
-
-                // 中文模式：關鍵字擴充 + 地區限制
-                String expandedKeyword = userKeyword + " AI 新聞 " + excludeTerms;
+                // ★ 2. 組合查詢：(中文 OR 英文) + AI + 排除名單
+                // 這樣 Google 會同時找中文和英文的高相關網頁
+                String expandedKeyword = "(" + userKeyword + " OR " + translatedKeyword + ") AI 新聞" + excludeTerms;
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
-                // 加入 Google API 在地化參數
                 urlBuilder.append("&q=").append(q);
-
-                urlBuilder.append("&gl=tw"); 
-                urlBuilder.append("&hl=zh-TW");       // 介面：繁中
-                urlBuilder.append("&lr=lang_zh-TW");        // 限制地區：台灣
+                urlBuilder.append("&gl=tw");           // 台灣優先
+                urlBuilder.append("&dateRestrict=y1"); // 最近一年 (確保時效性)
                 
             } else {
                 System.out.println("✅ Detected English/Global input.");
-                
-                // 英文模式：關鍵字擴充
-                String expandedKeyword = userKeyword + " AI technology news";
+                String expandedKeyword = userKeyword + " AI technology news" + excludeTerms;
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
                 urlBuilder.append("&q=").append(q);
-                // 英文模式通常不特別限制地區，保持全球搜尋
+                urlBuilder.append("&dateRestrict=y1");
             }
 
             String url = urlBuilder.toString();
@@ -90,7 +88,6 @@ public class GoogleQuery {
             System.out.println("\n=== Google Search Request ===");
             System.out.println("Query URL (masked): " + url.replace(apiKey, "***"));
             
-            // 3. 發送請求
             ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
             Map<String, Object> body = resp.getBody();
             List<SearchItem> items = new ArrayList<>();
@@ -103,9 +100,8 @@ public class GoogleQuery {
                     String title = (String) item.get("title");
                     String snippet = (String) item.get("snippet");
 
-                    // 4. 過濾非網頁檔案
+                    // 過濾非網頁檔案
                     if (link.matches(".*\\.(pdf|xml|csv|xls|xlsx|doc|docx|ppt|pptx|zip|rar|gz|mht)$")) {
-                        System.out.println("Ignored non-HTML file: " + link);
                         continue;
                     }
                     
@@ -121,10 +117,8 @@ public class GoogleQuery {
         }
     }
 
-    // ★ 語言偵測：檢查是否包含中文字元
     private boolean containsChinese(String text) {
         if (text == null) return false;
-        // Unicode 範圍 4E00-9FFF 是常用漢字
         Pattern p = Pattern.compile("[\u4e00-\u9fa5]");
         Matcher m = p.matcher(text);
         return m.find();
