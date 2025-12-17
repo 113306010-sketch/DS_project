@@ -4,7 +4,7 @@ import com.example.aiNews.model.SearchResult;
 import com.example.aiNews.model.WebPage;
 import com.example.aiNews.model.WebTree;
 import com.example.aiNews.service.GoogleQuery.SearchItem;
-import com.example.aiNews.util.Translator; // ★ 匯入翻譯工具
+import com.example.aiNews.util.Translator; 
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -35,11 +35,9 @@ public class SearchEngine {
     public List<SearchResult> rankPages(List<SearchItem> items, String userKeyword) {
         List<SearchResult> results = new ArrayList<>();
 
-        // ★ 準備計分用的關鍵字字串 (中文 + 英文)
         String scoringKeyword = userKeyword;
         if (containsChinese(userKeyword)) {
             String translated = Translator.translate("zh-TW", "en", userKeyword);
-            // 組合： "狗狗 dog"
             scoringKeyword = userKeyword + " " + translated;
         }
 
@@ -52,14 +50,12 @@ public class SearchEngine {
                 continue;
             }
 
-            // ★ 關鍵修改：使用 scoringKeyword (雙語) 並傳入 title, snippet
             WebPage rootPage = new WebPage(url, title, item.snippet, scoringKeyword);
             WebTree tree = new WebTree(rootPage, scoringKeyword);
 
             try {
-                if (rootPage.content != null && rootPage.content.equals(item.snippet)) {
-                    // Snippet 模式不爬子網頁
-                } else {
+                // 只有內文夠長才去爬子網頁，節省時間
+                if (rootPage.content != null && rootPage.content.length() > 200) {
                     tree.buildTree(2);
                 }
             } catch (Exception e) {
@@ -78,11 +74,13 @@ public class SearchEngine {
             tree.eularPrintTree();
             System.out.println("========================================\n");
 
-            // 過濾低分 (門檻 10 分，避免錯殺標題相關但內文抓不到的)
-           if (rootPage.userKeywordCount == 0 && treeScore < 10) {
-        // 只有在「沒提到使用者關鍵字」且「分數很低」時才過濾
-    continue; 
-}
+            // ★ 關鍵修改：大幅降低門檻
+            // 原本是 < 10，現在改成 < 1。
+            // 只要 Google 搜出來，且我們沒有判斷它是負分，就顯示給使用者。
+            // 這樣可以避免英文新聞因為摘要太短而被誤殺。
+            if (rootPage.userKeywordCount == 0 && treeScore < 1) {
+                continue;
+            }
 
             results.add(new SearchResult(
                 url, 
@@ -114,7 +112,6 @@ public class SearchEngine {
         return false;
     }
     
-    // 補上判斷中文的方法
     private boolean containsChinese(String text) {
         if (text == null) return false;
         return java.util.regex.Pattern.compile("[\u4e00-\u9fa5]").matcher(text).find();

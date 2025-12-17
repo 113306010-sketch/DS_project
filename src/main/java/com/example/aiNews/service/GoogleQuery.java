@@ -1,6 +1,6 @@
 package com.example.aiNews.service;
 
-import com.example.aiNews.util.Translator; // ★ 匯入翻譯工具
+import com.example.aiNews.util.Translator; 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -47,7 +47,7 @@ public class GoogleQuery {
             urlBuilder.append("&cx=").append(cx);
             urlBuilder.append("&num=10");
 
-            // 保留原本的排除清單 (很好用，繼續留著)
+            // 排除清單 (保留給中文用)
             String excludeTerms = " -site:play.google.com"
                                 + " -site:apps.apple.com"
                                 + " -site:shopee.tw"
@@ -61,26 +61,27 @@ public class GoogleQuery {
             String q;
             
             if (containsChinese(userKeyword)) {
-                // ★ 1. 翻譯：例如 "生成式" -> "Generative"
+                System.out.println("✅ Detected Chinese input. Applying Hybrid Search.");
+                // 1. 翻譯：中文 -> 英文
                 String translatedKeyword = Translator.translate("zh-TW", "en", userKeyword);
-                System.out.println("🔠 Hybrid Search: [" + userKeyword + "] + [" + translatedKeyword + "]");
                 
-                // ★ 2. 組合查詢：(中文 OR 英文) + AI + 排除名單
-                // 這樣 Google 會同時找中文和英文的高相關網頁
+                // 2. 組合查詢：(中文 OR 英文) + AI
                 String expandedKeyword = "(" + userKeyword + " OR " + translatedKeyword + ") AI 新聞" + excludeTerms;
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
                 urlBuilder.append("&q=").append(q);
                 urlBuilder.append("&gl=tw");           // 台灣優先
-                urlBuilder.append("&dateRestrict=y5"); // 最近五年 (確保時效性)
-
+                urlBuilder.append("&dateRestrict=y3"); // ★ 修改：放寬到最近 3 年 (原本是 y1)
+                
             } else {
                 System.out.println("✅ Detected English/Global input.");
-                String expandedKeyword = userKeyword + " AI technology news" + excludeTerms;
+                // 英文模式：關鍵字擴充
+                String expandedKeyword = userKeyword + " AI technology news";
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
                 urlBuilder.append("&q=").append(q);
-                urlBuilder.append("&dateRestrict=y5");
+                // ★ 關鍵修正：移除 dateRestrict，與 GitHub 版本保持一致
+                // 這樣可以搜到更多豐富的英文資料
             }
 
             String url = urlBuilder.toString();
@@ -100,7 +101,6 @@ public class GoogleQuery {
                     String title = (String) item.get("title");
                     String snippet = (String) item.get("snippet");
 
-                    // 過濾非網頁檔案
                     if (link.matches(".*\\.(pdf|xml|csv|xls|xlsx|doc|docx|ppt|pptx|zip|rar|gz|mht)$")) {
                         continue;
                     }
