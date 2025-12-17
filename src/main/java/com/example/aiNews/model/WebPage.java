@@ -18,6 +18,7 @@ public class WebPage {
             "machine learning", "deep learning", "neural network", 
             "large language model", "generative ai", "computer vision", 
             "natural language processing", "algorithm", "reinforcement learning",
+            "artificial intelligence", "big model",
             // Chinese
             "機器學習", "深度學習", "神經網絡", "神經網路", 
             "大型語言模型", "生成式", "電腦幻覺", "自然語言處理", "演算法", "強化學習",

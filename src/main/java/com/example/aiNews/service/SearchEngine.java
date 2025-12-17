@@ -73,7 +73,7 @@ public class SearchEngine {
             System.out.println("========================================\n");
 
             // 過濾低分 (門檻設低一點，避免錯殺)
-            if (rootPage.userKeywordCount == 0 && treeScore < 5) {
+            if (rootPage.userKeywordCount == 0 || rootPage.aiKeywordCount == 0 || treeScore < 5) {
                 continue;
             }
 

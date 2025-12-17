@@ -53,8 +53,18 @@ public class GoogleQuery {
             if (containsChinese(userKeyword)) {
                 System.out.println("✅ Detected Chinese input. Applying Localization (TW).");
                 
+                String excludeTerms = " -site:play.google.com"
+                                    + " -site:apps.apple.com"
+                                    + " -site:shopee.tw"
+                                    + " -site:momo.com.tw"
+                                    + " -site:pchome.com.tw"
+                                    + " -site:104.com.tw"
+                                    + " -site:1111.com.tw"
+                                    + " -site:wikipedia.org"
+                                    + " -site:moedict.tw";
+
                 // 中文模式：關鍵字擴充 + 地區限制
-                String expandedKeyword = userKeyword + " AI 新聞";
+                String expandedKeyword = userKeyword + " AI 新聞 " + excludeTerms;
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
                 // 加入 Google API 在地化參數
