@@ -17,6 +17,13 @@ public class SearchController {
     private final GoogleQuery googleQuery;
     private final SearchEngine searchEngine;
 
+    private final Map<String, List<SearchResult>> cache = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, List<SearchResult>> eldest) {
+            return size() > 100; 
+        }
+    };
+
     public SearchController(GoogleQuery googleQuery, SearchEngine searchEngine) {
         this.googleQuery = googleQuery;
         this.searchEngine = searchEngine;
@@ -24,8 +31,19 @@ public class SearchController {
 
     @GetMapping("/search")
     public List<SearchResult> search(@RequestParam String keyword) {
+
+        if (cache.containsKey(keyword)) {
+            return cache.get(keyword);
+        }
+
         List<SearchItem> items = googleQuery.search(keyword);
-        return searchEngine.rankPages(items, keyword);
+        List<SearchResult> results = searchEngine.rankPages(items, keyword);
+
+        if (!results.isEmpty()) {
+            cache.put(keyword, results);
+        }
+
+        return results;
     }
     
     /**
