@@ -70,7 +70,9 @@ public class GoogleQuery {
                 // 加入 Google API 在地化參數
                 urlBuilder.append("&q=").append(q);
 
-                urlBuilder.append("&gl=tw");         // 限制地區：台灣
+                urlBuilder.append("&gl=tw"); 
+                urlBuilder.append("&hl=zh-TW");       // 介面：繁中
+                urlBuilder.append("&lr=lang_zh-TW");        // 限制地區：台灣
                 
             } else {
                 System.out.println("✅ Detected English/Global input.");

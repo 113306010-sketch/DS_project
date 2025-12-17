@@ -72,9 +72,17 @@ public class SearchEngine {
             tree.eularPrintTree();
             System.out.println("========================================\n");
 
-            // 過濾低分 (門檻設低一點，避免錯殺)
-            if (rootPage.userKeywordCount == 0 || rootPage.aiKeywordCount == 0 || treeScore < 5) {
+            
+
+            boolean keywordInContent = rootPage.userKeywordCount > 0;
+            boolean keywordInTitle = title.toLowerCase().contains(userKeyword.toLowerCase());
+
+            if (!keywordInContent && !keywordInTitle) {
                 continue;
+            }
+
+            if (!keywordInTitle && treeScore < 5) {
+                 continue;
             }
 
             results.add(new SearchResult(

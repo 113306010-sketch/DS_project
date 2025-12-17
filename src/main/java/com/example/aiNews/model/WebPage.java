@@ -39,7 +39,7 @@ public class WebPage {
             "reveals", "discovered", "hidden", "unusual detail", "masterpiece", "overview",
             // Chinese
             "新聞", "報導", "研究", "分析", "介紹", "指南", "評論", "影響", 
-            "應用", "名作", "趨勢", "技術", "觀點", "專題", "懶人包"
+            "應用", "名作", "趨勢", "技術", "觀點", "專題", "懶人包", "資深記者"
     );
 
     public WebPage(String url, String userKeyword) {
