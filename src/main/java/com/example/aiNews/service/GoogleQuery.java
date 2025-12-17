@@ -72,15 +72,15 @@ public class GoogleQuery {
                 
                 urlBuilder.append("&q=").append(q);
                 urlBuilder.append("&gl=tw");           // 台灣優先
-                urlBuilder.append("&dateRestrict=y1"); // 最近一年 (確保時效性)
-                
+                urlBuilder.append("&dateRestrict=y5"); // 最近五年 (確保時效性)
+
             } else {
                 System.out.println("✅ Detected English/Global input.");
                 String expandedKeyword = userKeyword + " AI technology news" + excludeTerms;
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
                 urlBuilder.append("&q=").append(q);
-                urlBuilder.append("&dateRestrict=y1");
+                urlBuilder.append("&dateRestrict=y5");
             }
 
             String url = urlBuilder.toString();
