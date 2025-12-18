@@ -71,7 +71,7 @@ public class GoogleQuery {
                 
                 urlBuilder.append("&q=").append(q);
                 urlBuilder.append("&gl=tw");           // 台灣優先
-                urlBuilder.append("&dateRestrict=y3"); // ★ 修改：放寬到最近 3 年 (原本是 y1)
+                
                 
             } else {
                 System.out.println("✅ Detected English/Global input.");

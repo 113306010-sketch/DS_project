@@ -1,0 +1,11 @@
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/util/HTMLFetcher.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/model/WebTree.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/model/WebNode.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/service/GoogleQuery.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/AiNewsApplication.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/util/KeywordExtractor.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/model/WebPage.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/model/SearchResult.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/service/SearchEngine.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/util/Translator.java
+/Users/annelin/Documents/AI_news/src/main/java/com/example/aiNews/controller/SearchController.java
