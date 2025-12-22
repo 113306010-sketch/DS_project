@@ -47,17 +47,6 @@ public class GoogleQuery {
             urlBuilder.append("&cx=").append(cx);
             urlBuilder.append("&num=10");
 
-            // 排除清單 (保留給中文用)
-            String excludeTerms = " -site:play.google.com"
-                                + " -site:apps.apple.com"
-                                + " -site:shopee.tw"
-                                + " -site:momo.com.tw"
-                                + " -site:pchome.com.tw"
-                                + " -site:104.com.tw"
-                                + " -site:1111.com.tw"
-                                + " -site:wikipedia.org"
-                                + " -site:moedict.tw";
-
             String q;
             
             if (containsChinese(userKeyword)) {
@@ -65,8 +54,8 @@ public class GoogleQuery {
                 // 1. 翻譯：中文 -> 英文
                 String translatedKeyword = Translator.translate("zh-TW", "en", userKeyword);
                 
-                // 2. 組合查詢：(中文 OR 英文) + AI
-                String expandedKeyword = "(" + userKeyword + " OR " + translatedKeyword + ") AI 新聞" + excludeTerms;
+                // 2. 簡化查詢：只用翻譯後的英文 + AI
+                String expandedKeyword = translatedKeyword + " AI technology news";
                 q = URLEncoder.encode(expandedKeyword, StandardCharsets.UTF_8);
                 
                 urlBuilder.append("&q=").append(q);

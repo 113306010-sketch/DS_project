@@ -1,103 +1,133 @@
 package com.example.aiNews.util;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Stage 4: Semantics Analysis
- * 從網頁內容提取相關關鍵字
+ * 使用 Google Autocomplete API 取得搜尋建議
+ * 取代原本的 KeywordExtractor
  */
 public class KeywordExtractor {
-    
-    // 停用詞（常見但無意義的詞）
-    private static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(
-        // English
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-        "of", "with", "by", "from", "as", "is", "was", "are", "were", "been",
-        "be", "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "can", "may", "might", "must", "shall", "should", "this", "that", "these",
-        "those", "what", "which", "who", "when", "where", "why", "how", "all",
-        "each", "every", "both", "few", "more", "most", "other", "some", "such",
-        "than", "too", "very", "can", "just", "its", "our", "their", "about",
-        // Chinese
-        "的", "是", "在", "有", "和", "與", "或", "但", "了", "為", "以", "將",
-        "及", "等", "等等", "如", "如果", "因為", "所以", "但是", "然而", "而且",
-        "並且", "或者", "還是", "不過", "可是", "只是", "就是", "都是", "也是",
-        "這個", "那個", "什麼", "怎麼", "為什麼", "哪裡", "如何", "可以", "能夠",
-        "已經", "正在", "將要", "可能", "應該", "必須", "需要", "想要", "希望"
-    ));
-    
+
     /**
-     * 從單一文本提取關鍵字
+     * 取得 Google 搜尋建議
      * 
-     * @param content 文本內容
-     * @param topN 返回前 N 個關鍵字
-     * @return 關鍵字列表（依頻率排序）
+     * @param keyword 使用者輸入的關鍵字
+     * @return 搜尋建議列表
      */
-    public static List<String> extractKeywords(String content, int topN) {
-        if (content == null || content.isEmpty()) {
-            return new ArrayList<>();
-        }
+    public static List<String> getSuggestions(String keyword) {
+        List<String> suggestions = new ArrayList<>();
         
-        Map<String, Integer> wordCount = new HashMap<>();
-        
-        // 轉小寫
-        String text = content.toLowerCase();
-        
-        // 分詞：支援中英文
-        String[] words = text.split("[\\s\\p{Punct}]+");
-        
-        for (String word : words) {
-            // 移除非字母數字和中文字元
-            word = word.replaceAll("[^a-z0-9\\u4e00-\\u9fa5]", "");
+        try {
+            // 組合查詢：關鍵字 + AI
+            String query = keyword + " AI";
+            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
             
-            // 過濾條件：
-            // 1. 長度 > 2
-            // 2. 不是停用詞
-            // 3. 不是純數字
-            if (word.length() > 2 
-                && !STOP_WORDS.contains(word) 
-                && !word.matches("\\d+")) {
-                
-                wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
+            // Google Autocomplete API（非官方但免費）
+            String urlStr = "https://suggestqueries.google.com/complete/search"
+                    + "?client=firefox"
+                    + "&q=" + encodedQuery
+                    + "&hl=zh-TW";  // 繁體中文
+            
+            System.out.println("🔍 Google Suggest URL: " + urlStr);
+            
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode != 200) {
+                System.out.println("⚠️ Google Suggest API 回應碼: " + responseCode);
+                return suggestions;
             }
+            
+            // 讀取回應
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)
+            );
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            reader.close();
+            
+            // 解析 JSON 回應
+            // 格式: ["query", ["suggestion1", "suggestion2", ...]]
+            String json = response.toString();
+            suggestions = parseJsonArray(json);
+            
+            System.out.println("✅ Google Suggest 回傳 " + suggestions.size() + " 個建議");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Google Suggest 錯誤: " + e.getMessage());
         }
         
-        // 排序並返回前 N 個
-        return wordCount.entrySet().stream()
-                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
-                .limit(topN)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+        return suggestions;
     }
     
     /**
-     * 從多個文本提取綜合關鍵字
-     * 
-     * @param contents 文本列表
-     * @param topN 返回前 N 個關鍵字
-     * @return 關鍵字列表（依綜合頻率排序）
+     * 解析 Google Autocomplete 的 JSON 回應
+     * 格式: ["原始查詢", ["建議1", "建議2", "建議3", ...]]
      */
-    public static List<String> extractFromMultiplePages(List<String> contents, int topN) {
-        if (contents == null || contents.isEmpty()) {
-            return new ArrayList<>();
-        }
+    private static List<String> parseJsonArray(String json) {
+        List<String> results = new ArrayList<>();
         
-        Map<String, Integer> combinedCount = new HashMap<>();
-        
-        // 從每個文本提取關鍵字，並累計計數
-        for (String content : contents) {
-            List<String> keywords = extractKeywords(content, 30);
-            for (String keyword : keywords) {
-                combinedCount.put(keyword, combinedCount.getOrDefault(keyword, 0) + 1);
+        try {
+            // 找到第二個陣列的位置（建議列表）
+            int firstBracket = json.indexOf('[');
+            int secondBracket = json.indexOf('[', firstBracket + 1);
+            int closeBracket = json.indexOf(']', secondBracket);
+            
+            if (secondBracket == -1 || closeBracket == -1) {
+                return results;
             }
+            
+            // 取出建議陣列的內容
+            String arrayContent = json.substring(secondBracket + 1, closeBracket);
+            
+            // 分割字串，取出每個建議
+            // 格式: "建議1","建議2","建議3"
+            String[] items = arrayContent.split("\",\"");
+            
+            for (String item : items) {
+                // 移除多餘的引號
+                String cleaned = item.replace("\"", "").trim();
+                if (!cleaned.isEmpty()) {
+                    results.add(cleaned);
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("JSON 解析錯誤: " + e.getMessage());
         }
         
-        // 排序並返回前 N 個
-        return combinedCount.entrySet().stream()
-                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
-                .limit(topN)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+        return results;
+    }
+    
+    /**
+     * 測試用 main 方法
+     */
+    public static void main(String[] args) {
+        System.out.println("=== 測試 Google Suggest ===");
+        
+        // 測試中文
+        List<String> results1 = getSuggestions("政大");
+        System.out.println("政大 AI 建議: " + results1);
+        
+        System.out.println();
+        
+        // 測試另一個關鍵字
+        List<String> results2 = getSuggestions("灌籃高手");
+        System.out.println("灌籃高手 AI 建議: " + results2);
     }
 }

@@ -1,14 +1,29 @@
 {
-    "configurations": [
-        {
-            "type": "java",
-            "name": "Spring Boot-AiNewsApplication<aiNews>",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "mainClass": "com.example.aiNews.AiNewsApplication",
-            "projectName": "aiNews",
-            "args": "",
-            "envFile": "${workspaceFolder}/.env"
-        }
-    ]
+  "configurations": [
+    {
+      "type": "java",
+      "name": "KeywordExtractor",
+      "request": "launch",
+      "mainClass": "com.example.aiNews.util.KeywordExtractor",
+      "projectName": "aiNews"
+    },
+    {
+      "type": "java",
+      "name": "TranslatorTest",
+      "request": "launch",
+      "mainClass": "com.example.aiNews.util.TranslatorTest",
+      "projectName": "aiNews"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot-AiNewsApplication<aiNews>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.example.aiNews.AiNewsApplication",
+      "projectName": "aiNews",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env",
+      "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=49294 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=aiNews"
+    }
+  ]
 }

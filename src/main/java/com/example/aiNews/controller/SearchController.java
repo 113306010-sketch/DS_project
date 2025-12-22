@@ -68,16 +68,16 @@ public class SearchController {
         }
         
         // 3. 提取相關關鍵字
-        List<String> relatedKeywords = KeywordExtractor.extractFromMultiplePages(contents, 10);
-        
+        List<String> suggestions = KeywordExtractor.getSuggestions(keyword);
+
         System.out.println("原始關鍵字: " + keyword);
-        System.out.println("相關關鍵字: " + relatedKeywords);
+        System.out.println("相關關鍵字: " +suggestions );
         System.out.println("====================\n");
         
         // 4. 回傳結果
         Map<String, Object> response = new HashMap<>();
         response.put("original_keyword", keyword);
-        response.put("related_keywords", relatedKeywords);
+        response.put("related_keywords", suggestions);
         response.put("source_count", contents.size());
         
         return response;
