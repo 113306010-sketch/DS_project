@@ -7,6 +7,7 @@ import com.example.aiNews.service.SearchEngine;
 import com.example.aiNews.util.KeywordExtractor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
@@ -135,4 +136,10 @@ public class SearchController {
         
         return response;
     }
+    @GetMapping("/health")
+    @ResponseBody
+    public String health() {
+        return "ok";
+    }
+
 }
